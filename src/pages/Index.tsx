@@ -170,13 +170,13 @@ function Index() {
       
       const data = await response.json();
       
-      if (response.ok) {
-        alert(`✅ Бронирование подтверждено!\n\nЧек отправлен на ${email}\nПроверьте вашу почту.`);
+      if (response.ok && data.receipt) {
+        alert(data.receipt);
       } else {
-        alert(`✅ Бронирование подтверждено!\n\n⚠️ Ошибка отправки чека: ${data.error || 'Неизвестная ошибка'}\nПроверьте настройки SMTP в секретах проекта.`);
+        alert(`✅ Бронирование подтверждено!\n\n⚠️ Ошибка: ${data.error || 'Неизвестная ошибка'}`);
       }
     } catch (error) {
-      alert(`✅ Бронирование подтверждено!\n\n⚠️ Не удалось отправить чек: ${error}\nПроверьте настройки SMTP.`);
+      alert(`✅ Бронирование подтверждено!\n\n⚠️ Ошибка: ${error}`);
     }
     
     setIsSubmitting(false);
