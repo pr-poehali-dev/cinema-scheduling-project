@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import Icon from '@/components/ui/icon';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface Movie {
   id: number;
@@ -47,6 +49,8 @@ function Index() {
   const [showBooking, setShowBooking] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [bookedSeats, setBookedSeats] = useState<Record<string, number[]>>({});
+  const [email, setEmail] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -94,6 +98,7 @@ function Index() {
     setBookingTime(time);
     setSelectedSeats([]);
     setCart([]);
+    setEmail('');
     setShowBooking(true);
   };
 
@@ -129,8 +134,14 @@ function Index() {
     return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   };
 
-  const confirmBooking = () => {
+  const confirmBooking = async () => {
     if (selectedSeats.length === 0) return;
+    if (!email || !email.includes('@')) {
+      alert('Пожалуйста, укажите корректный email для получения чека');
+      return;
+    }
+    
+    setIsSubmitting(true);
     
     const sessionKey = getSessionKey(bookingMovie?.id || 0, bookingTime);
     const newBookedSeats = {
@@ -141,30 +152,38 @@ function Index() {
     setBookedSeats(newBookedSeats);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newBookedSeats));
     
-    const ticketsTotal = (bookingMovie?.price || 0) * selectedSeats.length;
-    const foodTotal = getTotalFood();
-    const total = ticketsTotal + foodTotal;
-    
-    let message = `✅ Бронирование подтверждено!\n\n`;
-    message += `🎬 Фильм: ${bookingMovie?.title}\n`;
-    message += `🕐 Время: ${bookingTime}\n`;
-    message += `🪑 Места: ${selectedSeats.sort((a, b) => a - b).join(', ')}\n`;
-    message += `🎟️ Билеты: ${ticketsTotal}₽\n`;
-    
-    if (cart.length > 0) {
-      message += `\n🍿 Кинобар:\n`;
-      cart.forEach(item => {
-        message += `   ${item.name} x${item.quantity} - ${item.price * item.quantity}₽\n`;
+    try {
+      const response = await fetch('https://functions.poehali.dev/7d333fb3-8297-49dd-9337-5c4511ac1cd3', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          movieTitle: bookingMovie?.title,
+          movieTime: bookingTime,
+          seats: selectedSeats.sort((a, b) => a - b),
+          ticketPrice: bookingMovie?.price,
+          cart: cart
+        })
       });
-      message += `🍿 Итого еда: ${foodTotal}₽\n`;
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        alert(`✅ Бронирование подтверждено!\n\nЧек отправлен на ${email}\nПроверьте вашу почту.`);
+      } else {
+        alert(`✅ Бронирование подтверждено!\n\n⚠️ Ошибка отправки чека: ${data.error || 'Неизвестная ошибка'}\nПроверьте настройки SMTP в секретах проекта.`);
+      }
+    } catch (error) {
+      alert(`✅ Бронирование подтверждено!\n\n⚠️ Не удалось отправить чек: ${error}\nПроверьте настройки SMTP.`);
     }
     
-    message += `\n💰 ВСЕГО: ${total}₽`;
-    
-    alert(message);
+    setIsSubmitting(false);
     setShowBooking(false);
     setSelectedSeats([]);
     setCart([]);
+    setEmail('');
   };
 
   const seats = Array.from({ length: 40 }, (_, i) => {
@@ -567,7 +586,26 @@ function Index() {
             </div>
           </div>
 
-          <div className="border-t border-primary/20 pt-6 mt-6">
+          <div className="border-t border-primary/20 pt-6 mt-6 space-y-6">
+            <div>
+              <Label htmlFor="email" className="text-lg font-heading mb-2 flex items-center gap-2">
+                <Icon name="Mail" size={20} className="text-accent" />
+                Email для получения чека
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="your-email@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-2 text-lg h-12 border-primary/30"
+                required
+              />
+              <p className="text-sm text-foreground/60 mt-2">
+                📧 На этот адрес придёт электронный билет с деталями бронирования
+              </p>
+            </div>
+            
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="text-sm text-foreground/60">
@@ -585,11 +623,20 @@ function Index() {
               <Button
                 size="lg"
                 onClick={confirmBooking}
-                disabled={selectedSeats.length === 0}
+                disabled={selectedSeats.length === 0 || isSubmitting || !email}
                 className="bg-secondary hover:bg-secondary/90 neon-border text-lg px-8"
               >
-                <Icon name="Check" className="mr-2" size={20} />
-                Забронировать
+                {isSubmitting ? (
+                  <>
+                    <Icon name="Loader2" className="mr-2 animate-spin" size={20} />
+                    Отправка...
+                  </>
+                ) : (
+                  <>
+                    <Icon name="Check" className="mr-2" size={20} />
+                    Забронировать
+                  </>
+                )}
               </Button>
             </div>
           </div>

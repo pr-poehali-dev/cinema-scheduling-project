@@ -1,0 +1,33 @@
+{
+  "tests": [
+    {
+      "name": "Test receipt sending",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "email": "test@example.com",
+        "movieTitle": "Чебурашка",
+        "movieTime": "19:00",
+        "seats": [1, 2, 3],
+        "ticketPrice": 400,
+        "cart": [
+          {
+            "name": "Попкорн большой",
+            "price": 350,
+            "quantity": 1
+          },
+          {
+            "name": "Кока-кола 0.25л",
+            "price": 125,
+            "quantity": 2
+          }
+        ]
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
